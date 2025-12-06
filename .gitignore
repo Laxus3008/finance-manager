@@ -19,6 +19,7 @@ uploads/
 
 # misc
 .DS_Store
+.env.production
 .env
 .env.local
 .env.development.local
