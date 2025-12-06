@@ -135,6 +135,9 @@ export const deleteTransaction = async (req, res) => {
 // @desc    Upload CSV and create transactions
 // @route   POST /api/transactions/upload
 // @access  Private
+// @desc    Upload CSV and create transactions
+// @route   POST /api/transactions/upload
+// @access  Private
 export const uploadCSV = async (req, res) => {
   try {
     if (!req.file) {
@@ -142,9 +145,12 @@ export const uploadCSV = async (req, res) => {
     }
 
     const results = [];
-    const filePath = req.file.path;
+    const { Readable } = await import('stream');
+    
+    // Convert buffer to stream
+    const bufferStream = Readable.from(req.file.buffer.toString());
 
-    fs.createReadStream(filePath)
+    bufferStream
       .pipe(csv())
       .on('data', (data) => results.push(data))
       .on('end', async () => {
@@ -157,7 +163,7 @@ export const uploadCSV = async (req, res) => {
             const description = row.description || row.Description;
             const amount = parseFloat(row.amount || row.Amount);
 
-            if (date && description && amount) {
+            if (date && description && !isNaN(amount)) {
               const category = categorizeTransaction(description);
               
               transactions.push({
@@ -166,26 +172,32 @@ export const uploadCSV = async (req, res) => {
                 description,
                 amount: Math.abs(amount),
                 category,
-                type: 'expense' // Assuming CSV imports are expenses
+                type: amount < 0 ? 'expense' : 'income'
               });
             }
           }
 
-          const createdTransactions = await Transaction.insertMany(transactions);
+          if (transactions.length === 0) {
+            return res.status(400).json({ message: 'No valid transactions found in CSV' });
+          }
 
-          // Delete the uploaded file
-          fs.unlinkSync(filePath);
+          const createdTransactions = await Transaction.insertMany(transactions);
 
           res.status(201).json({
             message: `${createdTransactions.length} transactions imported successfully`,
             transactions: createdTransactions
           });
         } catch (error) {
-          fs.unlinkSync(filePath);
+          console.error('CSV Processing Error:', error);
           res.status(500).json({ message: error.message });
         }
+      })
+      .on('error', (error) => {
+        console.error('CSV Parse Error:', error);
+        res.status(500).json({ message: 'Error parsing CSV file' });
       });
   } catch (error) {
+    console.error('Upload Error:', error);
     res.status(500).json({ message: error.message });
   }
 };
