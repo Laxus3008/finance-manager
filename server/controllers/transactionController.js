@@ -172,7 +172,7 @@ export const uploadCSV = async (req, res) => {
                 description,
                 amount: Math.abs(amount),
                 category,
-                type: amount < 0 ? 'expense' : 'income'
+                type: 'expense'
               });
             }
           }
