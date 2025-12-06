@@ -14,14 +14,7 @@ import { protect } from '../middleware/auth.js';
 const router = express.Router();
 
 // Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage: storage,
@@ -31,6 +24,9 @@ const upload = multer({
     } else {
       cb(new Error('Only CSV files are allowed'));
     }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
 
